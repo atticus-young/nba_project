@@ -1,0 +1,64 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+
+df = pd.read_csv('C:/Users/Atticus/Documents/GitHub/nba_proj/Seasons_Stats.csv',delimiter=',')
+
+df_subset = df[['Player','Age', 'TS%','FGA', 'PER', 'MP', 'Year','G']]
+df_cleaned = df_subset.dropna(subset=['Player','Age', 'TS%','FGA', 'PER', 'MP','Year','G'])
+
+player_counts = df_cleaned.groupby('Player').size()
+players_with_min_seasons = player_counts[player_counts >= 4].index
+df_min_seasons = df_cleaned[df_cleaned['Player'].isin(players_with_min_seasons)]
+#df_final = df_min_seasons[(df_min_seasons['TS%']>0.0) & (df_min_seasons['TS%'] < 0.69) & (df_min_seasons['FGA'] > 400)]
+df_final = df_min_seasons[(df_min_seasons['Year']>=1974) & (df_min_seasons['G']>=40)]
+#print(df_final['TS%'].describe())
+#print(df_final.head())
+#plt.scatter(df_final['Age'], df_final['PER'], color='blue', alpha=0.5, label='Data Points')
+#plt.show()
+
+X = df_final[['Age']].values
+y = df_final['PER'].values
+
+poly = PolynomialFeatures(degree=2)
+X_poly = poly.fit_transform(X)
+
+X_train, X_test, y_train, y_test = train_test_split(X_poly, y, test_size=0.2, random_state=42)
+
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+y_pred = model.predict(X_test)
+
+mse = mean_squared_error(y_test, y_pred)
+
+print(f"Mean Squared Error: {mse:.2f}")
+
+plt.figure(figsize=(10, 6))
+plt.scatter(df_final['Age'], df_final['PER'], color='blue', alpha=0.5, label='Data Points')
+
+age_range = np.linspace(df_final['Age'].min(), df_final['Age'].max(), 500).reshape(-1, 1)
+age_range_poly = poly.transform(age_range)
+per_pred = model.predict(age_range_poly)
+
+plt.plot(age_range, per_pred, color='red', label='Polynomial Regression Curve')
+plt.xlabel('Age')
+plt.ylabel('PER')
+plt.title('Age vs. PER')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+coefficients = model.coef_
+intercept = model.intercept_
+
+a = coefficients[2] 
+b = coefficients[1]  
+
+apex_age = -b / (2 * a)
+print(f"Age at highest predicted PER (apex): {apex_age:.2f}")
+
